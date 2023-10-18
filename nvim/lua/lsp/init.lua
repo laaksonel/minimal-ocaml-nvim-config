@@ -37,10 +37,6 @@ local nvim_lsp = require('lspconfig')
 nvim_lsp.ocamllsp.setup {
   on_attach = on_attach,
   capabilities = capabilities,
-  -- Launch ocamllsp with .merlin support
-  -- In order to get newest ocamllsp to work with Melange,
-  -- start ocamllsp with .merlin support
-  cmd = {'esy', 'ocamllsp', '--fallback-read-dot-merlin' }
 }
 
 -- ReScript LSP config
