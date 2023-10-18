@@ -5,9 +5,28 @@ vim.api.nvim_set_keymap('n', '[d', '<cmd>lua vim.diagnostic.goto_prev()<CR>', op
 vim.api.nvim_set_keymap('n', ']d', '<cmd>lua vim.diagnostic.goto_next()<CR>', opts)
 vim.api.nvim_set_keymap('n', '<space>q', '<cmd>lua vim.diagnostic.setloclist()<CR>', opts)
 
+local augroup_codelens = vim.api.nvim_create_augroup("custom-lsp-codelens", { clear = true })
+local autocmd_clear = vim.api.nvim_clear_autocmds
+local autocmd = function(args)
+  local event = args[1]
+  local group = args[2]
+  local callback = args[3]
+
+  vim.api.nvim_create_autocmd(event, {
+    group = group,
+    buffer = args[4],
+    callback = function()
+      callback()
+    end,
+    once = args.once,
+  })
+end
+
+
 -- Use an on_attach function to only map the following keys
 -- after the language server attaches to the current buffer
 local on_attach = function(client, bufnr)
+
   -- Enable completion triggered by <c-x><c-o>
   vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
 
@@ -26,6 +45,28 @@ local on_attach = function(client, bufnr)
   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<space>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
   vim.api.nvim_buf_set_keymap(bufnr, 'n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
   vim.api.nvim_buf_set_keymap(bufnr, 'n', '<space>f', '<cmd>lua vim.lsp.buf.format()<CR>', opts)
+
+  if client.server_capabilities.codeLensProvider then
+    autocmd_clear { group = augroup_codelens, buffer = bufnr }
+    autocmd { "BufEnter", augroup_codelens, vim.lsp.codelens.refresh, bufnr, once = true }
+    autocmd { { "BufWritePost", "CursorHold" }, augroup_codelens, vim.lsp.codelens.refresh, bufnr }
+  end
+
+  autocmd_clear { group = augroup_codelens, buffer = 0 }
+
+  autocmd {
+    { "BufEnter", "BufWritePost", "CursorHold" },
+    augroup_codelens,
+    require("lsp.codelens").refresh_virtlines,
+    0,
+  }
+
+  vim.keymap.set(
+    "n",
+    "<space>tt",
+    require("lsp.codelens").toggle_virtlines,
+    { silent = true, desc = "[T]oggle [T]ypes", buffer = 0 }
+  )
 end
 
 local capabilities = vim.lsp.protocol.make_client_capabilities()
@@ -37,6 +78,9 @@ local nvim_lsp = require('lspconfig')
 nvim_lsp.ocamllsp.setup {
   on_attach = on_attach,
   capabilities = capabilities,
+  settings = {
+    codelens = { enable = true },
+  },
 }
 
 -- ReScript LSP config
